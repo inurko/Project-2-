@@ -72,3 +72,14 @@ public class Parser {
 
     }
 }
+
+
+
+
+
+// merge run gets called runs.size()/8 =numofmerges
+//for(i =0; i <numMerges; i__)
+//mergeRun(i*8, 8)
+//have a variable leftovoermerge that saves %8
+//if leftovermerge isnt 0 then call merge run again
+//mergerun(numofMerges * 8, leftovermerge) starts where the other loop ended and goes till the leftovermerge is completed
