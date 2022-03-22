@@ -12,7 +12,9 @@ import java.util.ArrayList;
 public class Parser {
     private RandomAccessFile mergeFile;
     private RandomAccessFile firstMergeFile;
-    private ArrayList<MergeInfo> runs;
+    private ArrayList<MergeInfo> runsInfo;
+    private ArrayList<Record> run;
+    private ArrayList<ArrayList<Record>> allRuns;
     private boolean next;
 
     // the constructor of parser and you can add more here if
@@ -20,7 +22,8 @@ public class Parser {
     public Parser() throws IOException, FileNotFoundException {
         mergeFile = new RandomAccessFile("Merge.bin", "rw");
         firstMergeFile = new RandomAccessFile("mergeFirst.bin", "rw");
-        runs = new ArrayList<MergeInfo>();
+        runsInfo = new ArrayList<MergeInfo>();
+        allRuns = new ArrayList<>();
         next = true;
     }
 
@@ -32,35 +35,48 @@ public class Parser {
         for (int i = 0; i < ifrd.length()/8; i++){
             int start = ifrd.readInt();
             int runLength = ifrd.readInt();
-            runs.add(new MergeInfo(start, runLength));
+            runsInfo.add(new MergeInfo(start, runLength));
         }
 
         // executes while there is a next run (at least always 2)
+        RandomAccessFile raf = new RandomAccessFile(fileToParse, "r");
+        int i = 0;
         while(next){
-            //int i =0;
-            RandomAccessFile raf = new RandomAccessFile(fileToParse, "r");
             //raf.read();
-            if(runs.size() == 1){
+
+            if( i == runsInfo.size()){
                 next = false;
             }
-            else{
-                int numRuns = runs.size();
-                ArrayList<Record> runArray = new ArrayList<Record>();
-                for(int i = 0; i < raf.length(); i = i + 16){
-                    //ArrayList<>
+
+            else {
+                int numRuns = runsInfo.size();
+                run = new ArrayList<Record>();
+
+                int j;
+
+                System.out.println("runlength " + runsInfo.get(i).getRunLength());
+                System.out.println("i " + i);
+                for(j = 0; j <= runsInfo.get(i).getRunLength(); j += 16){
+
                     byte[] bytesToRead = new byte[16];
                     raf.read(bytesToRead);
                     Record newRecord = new Record(bytesToRead);
-                    runArray.add(newRecord);
-                    System.out.print(newRecord.toString());
-
-                    if (i == 512 || i == runs.get(i).getRunLength()){
-                        break;
-                    }
+                    run.add(newRecord);
+                 //   System.out.print(newRecord.toString());
+                  //
+                    //if (i == runs.get(i).getRunLength()){ //end of the run
+                        //break;
+                   // }
                 }
-                MultiMerge merger = new MultiMerge(runArray);
+                allRuns.add(run);
+                System.out.println("j " + j);
+                System.out.println("run size " + run.size());
+               // MultiMerge merger = new MultiMerge(runArray);
             }
+
+            i++;
         }
+        System.out.println("All Run Size " + allRuns.size());
         /*
         Since start point and length are both integers, you will
         use readInt here. Remember 1 Integer = 4bytes,
