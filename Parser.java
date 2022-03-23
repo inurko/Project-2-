@@ -81,13 +81,14 @@ public class Parser {
         use readInt here. Remember 1 Integer = 4bytes,
         which enlarge the size of file
          */
-        int k = 0;
+        /**int k = 0;
         while(k < 6596){
             System.out.println(k);
             getBlock(0,k);
-            k += 512;}
+            k += 512;
+        }**/
 
-
+        run();
     }
 
     public void parseFileUS(RandomAccessFile fileToParse, ArrayList<MergeInfo> mergeInfoArrayList,int mergeNum) {
@@ -108,7 +109,7 @@ public class Parser {
                 int numRuns = runsInfo.size();
                 run = new ArrayList<Record>();
                 int j;
-                System.out.println("runlength " + runsInfo.get(i).getRunLength());
+      //          System.out.println("runlength " + runsInfo.get(i).getRunLength());
                 System.out.println("i " + i);
                 for(j = 0; j <= runsInfo.get(i).getRunLength(); j += 16){
 
@@ -127,41 +128,46 @@ public class Parser {
                     // }
                 }
                 allRuns.add(run);
-                System.out.println("j " + j);
-                System.out.println("run size " + run.size());
+       //         System.out.println("j " + j);
+       //         System.out.println("run size " + run.size());
                 // MultiMerge merger = new MultiMerge(runArray);
             }
 
             i++;
         }
-        System.out.println("All Run Size " + allRuns.size());
+   //     System.out.println("All Run Size " + allRuns.size());
         /*
         Since start point and length are both integers, you will
         use readInt here. Remember 1 Integer = 4bytes,
         which enlarge the size of file
          */
-        int k = 0;
+       /** int k = 0;
         while(k < 6596){
             System.out.println(k);
             getBlock(0,k);
-            k += 512;}
+            k += 512;}**/
 
-
+            run();
     }
 
     public ArrayList<Record> getBlock(int runNumber, int index){
         ArrayList<Record> Block = new ArrayList<>();
+      //  System.out.println("Run Number " + runNumber);
         allRuns.get(runNumber);
         int length = runsInfo.get(runNumber).getRunLength();
-        if ( 8192 > (length - (index * 16))){
-            System.out.println("less than 512");
+        if ( index > runsInfo.get(runNumber).getStart() + runsInfo.get(runNumber).getRunLength()){
+         //   System.out.println("length " + length);
+         //   System.out.println("index " + index);
+         //   System.out.println("length-index " + (length - (index)));
+         //   System.out.println("less than 512");
             //go to end of the run
             for (int i = 0; i < ((length - (index* 16)) / 16); i++){
                 Block.add(allRuns.get(runNumber).get(index + i));
             }
         } else {
             for (int i = 0; i < 512; i++){
-                Block.add(allRuns.get(runNumber).get(index + i));
+                //System.out.println("check i :" + i);
+                Block.add(allRuns.get(runNumber).get(index - runsInfo.get(runNumber).getStart() + i));
             }
         }
         return Block;
@@ -169,38 +175,74 @@ public class Parser {
 
 
     public void merge(int StartRunNum,int EndRunNum) {
+        // makes array lists
         ArrayList<ArrayList<Record>> blocks = new ArrayList<>();
+        // position in the blocks array
         ArrayList<Integer> position = new ArrayList<>();
-        int totalRecords = 0;
-        for (int i = StartRunNum; i < EndRunNum; i++) {
-            totalRecords = totalRecords + runsInfo.get(i).getRunLength() / 16;
-            blocks.add(getBlock(runsInfo.get(i).getStart(), runsInfo.get(i).getRunLength()));
+        int qHold = 0;
+        int curRun = 0;
+
+        // fills array list with 0 as many times as EndRunNum-StartRunNum
+        for(int l=0;l<=EndRunNum-StartRunNum;l++)
+        {
+            position.add(0);
         }
+
+        int totalRecords = 0;
+
+   //     System.out.println("startrunnum "+ StartRunNum);
+   //     System.out.println("Endrun " + EndRunNum);
+
+        // gets one block from each run and adds to block arraylist
+        for (int i = StartRunNum; i <= EndRunNum; i++) {
+            System.out.println("i " + i);
+
+            // gets the number of total records in all runs passed to merge
+            totalRecords = totalRecords + runsInfo.get(i).getRunLength() / 16;
+      //      System.out.println("total records : " + totalRecords);
+        //    System.out.println("getBlock : " + runsInfo.get(i).getStart());
+
+            // adds the first block from runNumber i
+            blocks.add(getBlock(i, runsInfo.get(i).getStart()));
+        }
+        System.out.println("total Records " + totalRecords);
+
         ArrayList<Record> curBlock = new ArrayList<>();
-        for (int j = 0; j < totalRecords; j++) {
+
+        for (int j = 1; j <= totalRecords; j++) {
+
             if (j % 512 == 0) { //512 might b wrong bc j = 0
                 printToFile(curBlock);
                 curBlock.clear();
             }
-            int holdNum = position.get(0);
-            if (position.get(0) + runsInfo.get(0).getStart() == runsInfo.get(0).getRunLength()) {
-                blocks.remove(0);
-            } else if (position.get(0) == blocks.get(0).size()) {
-                getBlock(runsInfo.get(0).getStart() + j, runsInfo.get(0).getRunLength());
-                int holdStart = runsInfo.get(0).getStart();
-                runsInfo.get(0).setStart(position.get(0) + holdStart);
-                position.set(0, 0);
-            } else {
-                int qHold = 0;
-                double min = blocks.get(0).get(position.get(0)).getKey();
 
-                for (int q = 1; q < blocks.size(); q++) {
-                    if (position.get(q) + runsInfo.get(q).getStart() == runsInfo.get(q).getRunLength()) {
-                        blocks.remove(q);
-                    } else if (position.get(q) == blocks.get(q).size()) {
-                        getBlock(runsInfo.get(q).getStart() + j, runsInfo.get(q).getRunLength());
-                        int holdStart = runsInfo.get(q).getStart();
-                        runsInfo.get(q).setStart(position.get(q) + holdStart);
+            // if the pointer for the current run is outside of the length of the run set
+            if (position.get(curRun)*16 == runsInfo.get(StartRunNum).getRunLength()) {
+                blocks.set(curRun, null);
+            }
+
+
+            // check for if at end of block array
+            else if (position.get(curRun) == 512) {
+                System.out.println("call 1");
+                System.out.println("GetBlock 2 : " + (position.get(StartRunNum) + runsInfo.get(StartRunNum).getStart()));
+                blocks.set(curRun,getBlock(StartRunNum+curRun,position.get(curRun)));
+                int holdStart = runsInfo.get(StartRunNum+curRun).getStart();
+                runsInfo.get(StartRunNum+curRun).setStart(position.get(curRun) + holdStart);
+                position.set(curRun, 0);
+            } else {
+
+                double min = blocks.get(curRun).get(position.get(curRun)).getKey();
+
+                for (int q = curRun; q < (blocks.size()-curRun); q++) {
+                    if (position.get(q) + runsInfo.get(q+StartRunNum).getStart() == runsInfo.get(StartRunNum+q).getRunLength()) {
+                        blocks.set(q,null);
+                    } else if (position.get(q) == 512) {
+                        System.out.println("call 2");
+                        System.out.println("GetBlock 3 : " + position.get(q));
+                        blocks.set(curRun,getBlock(StartRunNum+curRun,position.get(curRun)));
+                        int holdStart = runsInfo.get(StartRunNum+q).getStart();
+                        runsInfo.get(StartRunNum+q).setStart(position.get(q) + holdStart);
                         position.set(q, 0);
                     } else if (blocks.get(q).get(position.get(q)).getKey() < min) {
                         min = blocks.get(q).get(position.get(q)).getKey();
@@ -208,10 +250,20 @@ public class Parser {
                     }
                 }
                 Record holdRec = new Record(blocks.get(qHold).get(position.get(qHold)).getWholeRecord());
+                int holdNum =position.get(qHold)+1;
+          //      System.out.println("holdNum " + holdNum);
+        //        System.out.println("qHold " + qHold);
+                position.set(qHold, holdNum);
                 curBlock.add(holdRec);
             }
         }
+        if(!curBlock.isEmpty()){
+            printToFile(curBlock);
+            curBlock.clear();
+        }
     }
+
+
     public void printToFile(ArrayList<Record> FileToPrint){
         //How to print the first or just know when it is
         if (numMerges%2==0){
@@ -251,11 +303,12 @@ public class Parser {
 
 
     public void run(){
+/*
         ArrayList<MergeInfo> NewRunInfo=new ArrayList<MergeInfo>();
         int runPointer  = 0;
         int numRuns=runsInfo.size();
         int i=0;
-        while (numRuns%8!=0){
+        while (numRuns%8==0){
             int holdRunPointer=runPointer;
             for(int p =0;p<9&&p<runsInfo.size();p++){
                 runPointer=runPointer+runsInfo.get(p).getRunLength();
@@ -267,8 +320,26 @@ public class Parser {
         }
         if(numRuns!=0)
         {
-            merge(0,numRuns);
+            merge(i,numRuns - 1);
         }
+    */
+        ArrayList<MergeInfo> NewRunInfo=new ArrayList<MergeInfo>();
+        int runPointer  = 0;
+        int numRuns=runsInfo.size();
+        int beg =0;
+
+        if(allRuns.size() > 8){
+        for (beg = 0; beg < allRuns.size(); beg += 8){
+            merge(beg, (beg + 7));
+        }
+        } else {
+            int end = allRuns.size() % 8;
+            System.out.println("end " + end);
+            if (end != 0) {
+                merge(beg, (beg + end-1));
+            }
+        }
+
         if(numMerges!=0){
             if(numMerges%2==0){
                 parseFileUS(mergeFile,NewRunInfo,numMerges%8+1);
